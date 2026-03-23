@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Search</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Setup Screen (shown when no library path configured) -->
+    <div id="setup-screen" class="setup-screen" hidden>
+        <div class="setup-card">
+            <h1>Video Search</h1>
+            <p>Welcome! To get started, specify the folder containing your video files.</p>
+            <div class="setup-input">
+                <input type="text" id="setup-path" placeholder="/path/to/your/videos">
+                <button onclick="setLibraryPath()">Set Library</button>
+            </div>
+            <p id="setup-error" class="error-text" hidden></p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" hidden>
+        <header>
+            <h1>Video Search</h1>
+            <p class="subtitle">Search transcripts, visuals, and chat with your videos</p>
+            <div class="library-info" id="library-info">
+                <span id="library-path-display"></span>
+                <button class="small-btn" onclick="showChangeLibrary()">Change</button>
+            </div>
+            <!-- Inline change library -->
+            <div id="change-library" class="library-info" hidden>
+                <input type="text" id="change-path" placeholder="/path/to/videos">
+                <button class="small-btn" onclick="changeLibraryPath()">Save</button>
+                <button class="small-btn secondary" onclick="hideChangeLibrary()">Cancel</button>
+                <span id="change-error" class="error-text"></span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Video Library -->
+            <section id="library-section">
+                <h2>Video Library</h2>
+                <div id="video-list" class="video-grid"></div>
+            </section>
+
+            <!-- Search Section -->
+            <section id="search-section">
+                <h2>Search</h2>
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="Search transcripts and visuals...">
+                    <select id="search-type">
+                        <option value="all">All</option>
+                        <option value="text">Transcript</option>
+                        <option value="visual">Visual</option>
+                    </select>
+                    <button onclick="performSearch()">Search</button>
+                </div>
+                <div id="search-results"></div>
+            </section>
+
+            <!-- Video Detail / Player -->
+            <section id="detail-section" hidden>
+                <button class="back-btn" onclick="hideDetail()">Back</button>
+                <div class="detail-layout">
+                    <div class="player-col">
+                        <video id="video-player" controls></video>
+                        <h3 id="detail-title"></h3>
+                    </div>
+                    <div class="info-col">
+                        <div class="tabs">
+                            <button class="tab active" onclick="switchTab('summary')">Summary</button>
+                            <button class="tab" onclick="switchTab('transcript')">Transcript</button>
+                            <button class="tab" onclick="switchTab('chat')">Chat</button>
+                        </div>
+                        <div id="tab-summary" class="tab-content active">
+                            <div id="summary-content"></div>
+                        </div>
+                        <div id="tab-transcript" class="tab-content">
+                            <div id="transcript-content"></div>
+                        </div>
+                        <div id="tab-chat" class="tab-content">
+                            <div id="chat-messages"></div>
+                            <div class="chat-input">
+                                <input type="text" id="chat-input" placeholder="Ask a question about this video...">
+                                <button onclick="sendChat()">Send</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

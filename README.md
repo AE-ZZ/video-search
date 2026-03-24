@@ -1,6 +1,6 @@
 # Video Search
 
-A local webapp that lets you search through your video files by transcript, visual content, and conversational Q&A — powered by Whisper, CLIP, and GPT.
+A local webapp that lets you search through your video files by transcript, visual content, and conversational Q&A — powered by whisper.cpp, CLIP, and GPT.
 
 ## What does this app do?
 
@@ -15,12 +15,12 @@ Everything runs locally on your machine except for the AI summaries and Q&A (whi
 
 ## Core Models
 
-| Model | Type | Purpose | Details |
-|-------|------|---------|---------|
-| **Whisper large-v3** | Speech-to-Text | Transcribes video audio into timestamped text segments | Runs locally via `faster-whisper`, CPU with int8 quantization |
-| **CLIP ViT-B/32** | Vision-Language | Embeds video frames and text queries into a shared vector space for visual search | Runs locally via `open-clip-torch`, pretrained on LAION-2B |
-| **all-MiniLM-L6-v2** | Text Embedding | Embeds transcript segments and search queries for semantic text search | Runs locally via `sentence-transformers`, 384-dim vectors |
-| **GPT-4o-mini** | LLM | Generates video summaries and answers Q&A questions with timestamp citations | Requires OpenAI API key |
+| Model | Type | Device | Purpose |
+|-------|------|--------|---------|
+| **whisper.cpp large-v3-turbo** | Speech-to-Text | Metal GPU | Transcribes video audio into timestamped text segments. ~45x faster than CPU-based alternatives on Apple Silicon. |
+| **CLIP ViT-B/32** | Vision-Language | MPS GPU | Embeds video frames and text queries into a shared vector space for visual search. Runs locally via `open-clip-torch`. |
+| **all-MiniLM-L6-v2** | Text Embedding | MPS GPU | Embeds transcript segments and search queries for semantic text search. Runs locally via `sentence-transformers`, 384-dim vectors. |
+| **GPT-4o-mini** | LLM | Cloud | Generates video summaries and answers Q&A questions with timestamp citations. Requires OpenAI API key. |
 
 ### Vector Database
 
@@ -37,19 +37,19 @@ Everything runs locally on your machine except for the AI summaries and Q&A (whi
 ```
 Video Library (auto-scanned)
   │
-  ├─ Audio ──► Whisper ──► Transcript segments (timestamped)
-  │                              │
-  │                              ├─► Sentence-Transformers ──► Text embeddings ──► ChromaDB
-  │                              │
-  │                              └─► GPT-4o-mini ──► Summary
+  ├─ Audio ──► whisper.cpp (Metal) ──► Transcript segments (timestamped)
+  │                                         │
+  │                                         ├─► Sentence-Transformers (MPS) ──► Text embeddings ──► ChromaDB
+  │                                         │
+  │                                         └─► GPT-4o-mini ──► Summary
   │
-  └─ Frames ──► CLIP (image encoder) ──► Visual embeddings ──► ChromaDB
+  └─ Frames ──► CLIP image encoder (MPS) ──► Visual embeddings ──► ChromaDB
 
 Search Query
   │
   ├─ Text search ──► Sentence-Transformers ──► query ChromaDB transcripts
   │
-  └─ Visual search ──► CLIP (text encoder) ──► query ChromaDB frames
+  └─ Visual search ──► CLIP text encoder ──► query ChromaDB frames
 ```
 
 ## Features
@@ -61,12 +61,15 @@ Search Query
 - **Q&A chat** — Ask questions about a video's content; answers include timestamp citations
 - **Click-to-seek** — Click any search result or transcript segment to jump to that moment in the video
 - **Live processing status** — See which videos are processed, processing, or pending in real time
+- **Grouped search results** — Results are grouped by video file; click a video to expand and see all matching moments
+- **Adjustable search thresholds** — Fine-tune relevance via the Advanced panel (see below)
 
 ## Prerequisites
 
 - Python 3.11+
 - FFmpeg (for audio/frame extraction)
 - An OpenAI API key (for summaries and Q&A)
+- macOS with Apple Silicon recommended (Metal GPU acceleration for whisper.cpp and MPS for CLIP/sentence-transformers)
 
 ## Setup
 
@@ -76,8 +79,11 @@ cd /path/to/Playground
 
 # Create a virtual environment and install dependencies
 uv venv
-uv pip install fastapi "uvicorn[standard]" python-multipart faster-whisper \
+uv pip install fastapi "uvicorn[standard]" python-multipart \
     open-clip-torch sentence-transformers chromadb openai pillow python-dotenv watchdog
+
+# Install whisper.cpp with Metal GPU support
+GGML_METAL=1 uv pip install git+https://github.com/absadiki/pywhispercpp
 
 # Set your OpenAI API key in .env
 echo "OPENAI_API_KEY=sk-proj-your-key-here" > .env
@@ -94,7 +100,7 @@ echo "VIDEO_LIBRARY_PATH=/path/to/your/videos" >> .env
 .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-On first start, ML models will be downloaded automatically (~1-2 GB total). Subsequent starts load from cache.
+On first start, ML models will be downloaded automatically (~1.5 GB for whisper.cpp, ~350 MB for CLIP, ~80 MB for sentence-transformers). Subsequent starts load from cache.
 
 ### 2. Open the app
 
@@ -120,11 +126,26 @@ Type a query in the search bar and choose a search type:
 | **Visual** | Searches what *appears* in video frames | "a cat", "whiteboard with diagrams" |
 | **All** | Combined search across both | Any query |
 
-Click any result to jump to that exact moment in the video.
+**Search results are grouped by video** — each video shows as a collapsible card with the number of matches. Click to expand and see individual hits with thumbnails and timestamps. Click any hit to jump to that moment in the video.
 
-### 5. Explore a video
+Visual results within 5 seconds of each other are deduplicated to reduce noise.
 
-Click a processed video in the library to open the detail view with three tabs:
+### 5. Advanced search settings
+
+Click **Advanced** below the search bar to reveal:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Semantic matches** | On | Toggle whether to include semantically similar results (not just exact word matches) |
+| **Exact threshold** | 0.30 | Minimum similarity score for exact text matches |
+| **Semantic threshold** | 0.50 | Minimum similarity score for semantic matches (higher = stricter, fewer but more relevant results) |
+| **Visual threshold** | 0.25 | Minimum similarity score for visual matches (CLIP scores are naturally lower than text scores) |
+
+Only results above the threshold are returned — no forced padding with irrelevant matches.
+
+### 6. Explore a video
+
+Click a processed video in the library to open the detail view with tabs:
 
 - **Summary** — AI-generated bullet-point overview
 - **Transcript** — Full timestamped transcript; click any segment to seek
@@ -139,7 +160,7 @@ Click a processed video in the library to open the detail view with three tabs:
 | `GET` | `/api/library` | List all videos with processing status |
 | `GET` | `/api/library/{video_id}/stream` | Stream video file |
 | `GET` | `/api/library/{video_id}/frames/{timestamp}` | Get a frame image |
-| `GET` | `/api/search?q=...&type=text\|visual\|all` | Search across videos |
+| `GET` | `/api/search?q=...&type=...&semantic=...&text_threshold=...&semantic_threshold=...&visual_threshold=...` | Search across videos |
 | `GET` | `/api/videos/{video_id}` | Get video detail (summary + transcript) |
 | `POST` | `/api/chat` | Q&A chat about a specific video |
 | `POST` | `/api/ingest` | Upload and process a single video file |
@@ -156,16 +177,16 @@ backend/
 │   ├── settings.py          # Library path configuration
 │   ├── library.py           # Video library listing, streaming, frames
 │   ├── ingest.py            # Single video upload + processing
-│   ├── search.py            # Text and visual search
+│   ├── search.py            # Text and visual search with thresholds
 │   ├── chat.py              # Q&A with RAG retrieval
 │   └── videos.py            # Video detail, summary, transcript
 ├── services/
 │   ├── library.py           # Library manager (scan, queue, process, track)
 │   ├── watcher.py           # Filesystem watcher (watchdog)
 │   ├── video_processing.py  # FFmpeg audio/frame extraction
-│   ├── transcription.py     # Whisper transcription
-│   ├── embeddings.py        # Sentence-transformer embeddings
-│   ├── visual.py            # CLIP image/text encoding
+│   ├── transcription.py     # whisper.cpp transcription (Metal GPU)
+│   ├── embeddings.py        # Sentence-transformer embeddings (MPS)
+│   ├── visual.py            # CLIP image/text encoding (MPS)
 │   ├── vectorstore.py       # ChromaDB (3 collections)
 │   └── llm.py               # OpenAI GPT for summary + Q&A
 └── data/                    # Processed data (auto-created)
@@ -191,10 +212,10 @@ VIDEO_LIBRARY_PATH=/path/to/videos  # Set via UI or manually
 Model settings in `backend/config.py`:
 
 ```python
-WHISPER_MODEL = "large-v3"      # Options: tiny, base, small, medium, large-v3
-CLIP_MODEL = "ViT-B-32"         # Larger: ViT-L-14 (slower but more accurate)
+WHISPER_MODEL = "large-v3-turbo"   # Options: tiny, base, small, medium, large-v3, large-v3-turbo
+CLIP_MODEL = "ViT-B-32"           # Larger: ViT-L-14 (slower but more accurate)
 SENTENCE_MODEL = "all-MiniLM-L6-v2"
-FRAME_SAMPLE_INTERVAL = 2       # Extract 1 frame every N seconds
+FRAME_SAMPLE_INTERVAL = 2         # Extract 1 frame every N seconds
 ```
 
-Smaller Whisper models (`tiny`, `base`) are faster but less accurate. `large-v3` gives the best transcription quality.
+`large-v3-turbo` is recommended — same quality as `large-v3` but significantly faster. Smaller models (`tiny`, `base`) trade accuracy for speed.

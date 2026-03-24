@@ -1,22 +1,22 @@
 from pathlib import Path
-from faster_whisper import WhisperModel
+from pywhispercpp.model import Model
 
 from backend.config import WHISPER_MODEL
 
 
-def load_whisper_model() -> WhisperModel:
-    return WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
+def load_whisper_model() -> Model:
+    return Model(WHISPER_MODEL)
 
 
-def transcribe(model: WhisperModel, audio_path: Path) -> list[dict]:
+def transcribe(model: Model, audio_path: Path) -> list[dict]:
     """Transcribe audio and return timestamped segments."""
-    segments, _info = model.transcribe(str(audio_path), beam_size=5)
+    segments = model.transcribe(str(audio_path))
 
     results = []
     for seg in segments:
         results.append({
-            "start": round(seg.start, 2),
-            "end": round(seg.end, 2),
+            "start": round(seg.t0 / 100, 2),  # centiseconds to seconds
+            "end": round(seg.t1 / 100, 2),
             "text": seg.text.strip(),
         })
 

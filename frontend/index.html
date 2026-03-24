@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Search</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -41,8 +42,12 @@
         <main>
             <!-- Video Library -->
             <section id="library-section">
-                <h2>Video Library</h2>
-                <div id="video-list" class="video-grid"></div>
+                <div class="library-header" onclick="toggleLibrary()">
+                    <h2>Video Library</h2>
+                    <span class="library-count" id="library-count"></span>
+                    <span class="expand-icon" id="library-expand-icon">&#9654;</span>
+                </div>
+                <div id="video-list" class="video-grid" hidden></div>
             </section>
 
             <!-- Search Section -->
@@ -56,6 +61,31 @@
                         <option value="visual">Visual</option>
                     </select>
                     <button onclick="performSearch()">Search</button>
+                </div>
+                <div class="advanced-toggle" onclick="toggleAdvanced()">
+                    <span>Advanced</span>
+                    <span class="expand-icon" id="advanced-expand-icon">&#9654;</span>
+                </div>
+                <div class="search-options" id="search-options" hidden>
+                    <label class="option-toggle">
+                        <input type="checkbox" id="semantic-toggle" checked>
+                        <span>Semantic matches</span>
+                    </label>
+                    <label class="option-slider">
+                        <span>Exact:</span>
+                        <input type="range" id="text-threshold" min="0" max="1" step="0.05" value="0.3">
+                        <span id="text-threshold-val">0.30</span>
+                    </label>
+                    <label class="option-slider">
+                        <span>Semantic:</span>
+                        <input type="range" id="semantic-threshold" min="0" max="1" step="0.05" value="0.5">
+                        <span id="semantic-threshold-val">0.50</span>
+                    </label>
+                    <label class="option-slider">
+                        <span>Visual:</span>
+                        <input type="range" id="visual-threshold" min="0" max="1" step="0.05" value="0.25">
+                        <span id="visual-threshold-val">0.25</span>
+                    </label>
                 </div>
                 <div id="search-results"></div>
             </section>
@@ -72,20 +102,12 @@
                         <div class="tabs">
                             <button class="tab active" onclick="switchTab('summary')">Summary</button>
                             <button class="tab" onclick="switchTab('transcript')">Transcript</button>
-                            <button class="tab" onclick="switchTab('chat')">Chat</button>
                         </div>
                         <div id="tab-summary" class="tab-content active">
                             <div id="summary-content"></div>
                         </div>
                         <div id="tab-transcript" class="tab-content">
                             <div id="transcript-content"></div>
-                        </div>
-                        <div id="tab-chat" class="tab-content">
-                            <div id="chat-messages"></div>
-                            <div class="chat-input">
-                                <input type="text" id="chat-input" placeholder="Ask a question about this video...">
-                                <button onclick="sendChat()">Send</button>
-                            </div>
                         </div>
                     </div>
                 </div>

@@ -9,8 +9,11 @@ body {
 
 /* Setup screen */
 .setup-screen {
-    display: flex; align-items: center; justify-content: center;
+    align-items: center; justify-content: center;
     min-height: 100vh;
+}
+.setup-screen:not([hidden]) {
+    display: flex;
 }
 .setup-card {
     background: #1a1a2e; border-radius: 12px; padding: 3rem;
@@ -39,8 +42,11 @@ header h1 { font-size: 2rem; color: #fff; }
 .subtitle { color: #888; margin-top: 0.3rem; }
 
 .library-info {
-    display: flex; align-items: center; justify-content: center;
+    align-items: center; justify-content: center;
     gap: 0.5rem; margin-top: 0.75rem;
+}
+.library-info:not([hidden]) {
+    display: flex;
 }
 .library-info span {
     color: #888; font-size: 0.85rem; font-family: monospace;
@@ -70,10 +76,24 @@ button {
 button:hover { background: #3a8eef; }
 button:disabled { background: #555; cursor: not-allowed; }
 
+/* Library header */
+.library-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    cursor: pointer; padding: 0.5rem 0; user-select: none;
+}
+.library-header h2 { margin-bottom: 0; }
+.library-count {
+    font-size: 0.8rem; color: #888; background: #2a2a2a;
+    padding: 2px 8px; border-radius: 10px;
+}
+
 /* Video grid */
 .video-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem; margin-top: 0.75rem;
+}
+.video-grid:not([hidden]) {
+    display: grid;
 }
 
 .video-card {
@@ -113,19 +133,70 @@ button:disabled { background: #555; cursor: not-allowed; }
     background: #1a1a1a; color: #e0e0e0;
 }
 
+.advanced-toggle {
+    display: flex; align-items: center; gap: 0.4rem;
+    cursor: pointer; font-size: 0.8rem; color: #888;
+    margin-bottom: 0.5rem; user-select: none;
+}
+.advanced-toggle:hover { color: #aaa; }
+
+.search-options {
+    align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    margin-bottom: 1rem; padding: 0.6rem 0.8rem;
+    background: #1a1a1a; border-radius: 6px; border: 1px solid #333;
+    font-size: 0.8rem; color: #aaa;
+}
+.search-options:not([hidden]) {
+    display: flex;
+}
+.option-toggle {
+    display: flex; align-items: center; gap: 0.4rem; cursor: pointer;
+}
+.option-toggle input { accent-color: #4a9eff; }
+.option-slider {
+    display: flex; align-items: center; gap: 0.4rem;
+}
+.option-slider input[type="range"] {
+    width: 100px; accent-color: #4a9eff;
+}
+.option-slider span:last-child {
+    min-width: 2.2em; text-align: right; font-family: monospace; color: #ccc;
+}
+
 #search-results { display: flex; flex-direction: column; gap: 0.75rem; }
 
-.result-card {
-    display: flex; gap: 1rem; padding: 1rem; background: #1a1a1a;
-    border-radius: 8px; border: 1px solid #333; cursor: pointer;
-    transition: border-color 0.2s;
+/* Grouped results */
+.result-group {
+    background: #1a1a1a; border-radius: 8px; border: 1px solid #333;
+    overflow: hidden;
 }
-.result-card:hover { border-color: #4a9eff; }
-.result-card .result-info { flex: 1; }
-.result-card .result-info h4 { font-size: 0.9rem; color: #fff; margin-bottom: 0.3rem; }
-.result-card .result-info p { font-size: 0.85rem; color: #aaa; }
-.result-card .result-meta { font-size: 0.75rem; color: #666; margin-top: 0.3rem; }
-.result-card img { width: 120px; height: 80px; object-fit: cover; border-radius: 4px; }
+.result-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s;
+}
+.result-group-header:hover { background: #222; }
+.result-group-title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.result-group-title h4 { font-size: 0.95rem; color: #fff; }
+.hit-count {
+    font-size: 0.75rem; color: #888; background: #2a2a2a;
+    padding: 2px 8px; border-radius: 10px;
+}
+.expand-icon {
+    font-size: 0.7rem; color: #666; transition: transform 0.2s;
+}
+.expand-icon.expanded { transform: rotate(90deg); }
+
+.result-group-hits { padding: 0 0.5rem 0.5rem; }
+
+.hit-item {
+    display: flex; gap: 0.75rem; padding: 0.6rem 0.5rem;
+    border-radius: 6px; cursor: pointer; transition: background 0.2s;
+}
+.hit-item:hover { background: #2a2a2a; }
+.hit-info { flex: 1; }
+.hit-info p { font-size: 0.85rem; color: #aaa; }
+.hit-item img { width: 100px; height: 66px; object-fit: cover; border-radius: 4px; }
+.result-meta { font-size: 0.75rem; color: #666; margin-top: 0.3rem; }
 .badge {
     display: inline-block; padding: 2px 6px; border-radius: 3px;
     font-size: 0.7rem; font-weight: 600; margin-right: 0.3rem;

@@ -23,7 +23,7 @@ ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv"}
 
 # Model settings
-WHISPER_MODEL = "large-v3"  # tiny, base, small, medium, large-v3
+WHISPER_MODEL = "large-v3-turbo"  # tiny, base, small, medium, large-v3, large-v3-turbo
 CLIP_MODEL = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
 SENTENCE_MODEL = "all-MiniLM-L6-v2"

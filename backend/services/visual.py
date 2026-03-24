@@ -7,12 +7,15 @@ from PIL import Image
 from backend.config import CLIP_MODEL, CLIP_PRETRAINED
 
 
+DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
+
+
 def load_clip_model():
     model, _, preprocess = open_clip.create_model_and_transforms(
         CLIP_MODEL, pretrained=CLIP_PRETRAINED,
     )
     tokenizer = open_clip.get_tokenizer(CLIP_MODEL)
-    model.eval()
+    model.eval().to(DEVICE)
     return model, preprocess, tokenizer
 
 
@@ -22,18 +25,18 @@ def embed_images(model, preprocess, image_paths: list[Path]) -> list[list[float]
         img = Image.open(p).convert("RGB")
         images.append(preprocess(img))
 
-    batch = torch.stack(images)
+    batch = torch.stack(images).to(DEVICE)
     with torch.no_grad():
         features = model.encode_image(batch)
         features = features / features.norm(dim=-1, keepdim=True)
 
-    return features.tolist()
+    return features.cpu().tolist()
 
 
 def embed_text_query(model, tokenizer, text: str) -> list[float]:
-    tokens = tokenizer([text])
+    tokens = tokenizer([text]).to(DEVICE)
     with torch.no_grad():
         features = model.encode_text(tokens)
         features = features / features.norm(dim=-1, keepdim=True)
 
-    return features[0].tolist()
+    return features[0].cpu().tolist()

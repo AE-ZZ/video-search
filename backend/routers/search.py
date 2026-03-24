@@ -11,49 +11,64 @@ async def search(
     request: Request,
     q: str = Query(..., min_length=1),
     type: str = Query("text", pattern="^(text|visual|all)$"),
-    n: int = Query(20, ge=1, le=100),
+    text_threshold: float = Query(0.3, ge=0, le=1),
+    semantic_threshold: float = Query(0.5, ge=0, le=1),
+    visual_threshold: float = Query(0.25, ge=0, le=1),
+    semantic: bool = Query(True),
 ):
     collections = request.app.state.collections
     results = []
 
     if type in ("text", "all"):
-        # Semantic search
         query_embed = embeddings.embed_texts(request.app.state.sentence_model, [q])[0]
-        semantic = vectorstore.search_transcripts(
-            collections["transcripts"], query_embed, n_results=n,
+        search_results = vectorstore.search_transcripts(
+            collections["transcripts"], query_embed, n_results=100,
         )
 
-        if semantic["ids"] and semantic["ids"][0]:
-            for i, doc_id in enumerate(semantic["ids"][0]):
-                meta = semantic["metadatas"][0][i]
-                distance = semantic["distances"][0][i]
-                score = 1.0 - distance  # cosine distance to similarity
-                results.append(SearchResult(
-                    video_id=meta["video_id"],
-                    video_filename=meta["video_filename"],
-                    score=round(score, 4),
-                    start_time=meta["start_time"],
-                    end_time=meta["end_time"],
-                    text=semantic["documents"][0][i],
-                    match_type="semantic",
-                ))
+        if search_results["ids"] and search_results["ids"][0]:
+            q_lower = q.lower()
+            for i, doc_id in enumerate(search_results["ids"][0]):
+                meta = search_results["metadatas"][0][i]
+                distance = search_results["distances"][0][i]
+                score = 1.0 - distance
+                text = search_results["documents"][0][i]
 
-        # Exact search - check if query appears literally in results
-        q_lower = q.lower()
-        for r in results:
-            if r.text and q_lower in r.text.lower():
-                r.match_type = "exact"
-                r.score = min(r.score + 0.2, 1.0)  # boost exact matches
+                is_exact = text and q_lower in text.lower()
+
+                if is_exact:
+                    boosted_score = min(score + 0.2, 1.0)
+                    if boosted_score < text_threshold:
+                        continue
+                    results.append(SearchResult(
+                        video_id=meta["video_id"],
+                        video_filename=meta["video_filename"],
+                        score=round(boosted_score, 4),
+                        start_time=meta["start_time"],
+                        end_time=meta["end_time"],
+                        text=text,
+                        match_type="exact",
+                    ))
+                elif semantic:
+                    if score < semantic_threshold:
+                        continue
+                    results.append(SearchResult(
+                        video_id=meta["video_id"],
+                        video_filename=meta["video_filename"],
+                        score=round(score, 4),
+                        start_time=meta["start_time"],
+                        end_time=meta["end_time"],
+                        text=text,
+                        match_type="semantic",
+                    ))
 
     if type in ("visual", "all"):
-        # CLIP text-to-image search
         query_embed = visual.embed_text_query(
             request.app.state.clip_model,
             request.app.state.clip_tokenizer,
             q,
         )
         frame_results = vectorstore.search_frames(
-            collections["frames"], query_embed, n_results=n,
+            collections["frames"], query_embed, n_results=100,
         )
 
         if frame_results["ids"] and frame_results["ids"][0]:
@@ -61,6 +76,8 @@ async def search(
                 meta = frame_results["metadatas"][0][i]
                 distance = frame_results["distances"][0][i]
                 score = 1.0 - distance
+                if score < visual_threshold:
+                    continue
                 results.append(SearchResult(
                     video_id=meta["video_id"],
                     video_filename=meta["video_filename"],
@@ -70,7 +87,6 @@ async def search(
                     match_type="visual",
                 ))
 
-    # Sort by score descending
     results.sort(key=lambda r: r.score, reverse=True)
 
-    return SearchResponse(query=q, results=results[:n])
+    return SearchResponse(query=q, results=results)

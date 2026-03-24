@@ -47,7 +47,7 @@ class LibraryManager:
             vid_id = f["video_id"]
             if vid_id in processed:
                 stored_mtime = processed[vid_id].get("mtime", 0)
-                if f["mtime"] > stored_mtime:
+                if f["mtime"] - stored_mtime > 1.0:  # 1s tolerance for float precision
                     # File was modified — re-process
                     logger.info(f"File modified, re-processing: {f['filename']}")
                     self._remove_video_data(vid_id)
@@ -78,11 +78,15 @@ class LibraryManager:
 
         # Check if already processed with same mtime
         existing = self.video_status.get(vid_id)
-        if existing and existing.get("status") == "processed" and existing.get("mtime", 0) >= stat.st_mtime:
-            return
-
-        # If modified, remove old data first
         if existing:
+            status = existing.get("status")
+            # Skip if already queued or being processed
+            if status in ("pending", "processing"):
+                return
+            # Skip if already processed and file hasn't changed
+            if status == "processed" and existing.get("mtime", 0) >= stat.st_mtime:
+                return
+            # Modified — remove old data before re-processing
             self._remove_video_data(vid_id)
 
         self._enqueue({
@@ -97,6 +101,7 @@ class LibraryManager:
         """Called by watcher when a file is deleted."""
         vid_id = file_id_from_path(file_path)
         self._remove_video_data(vid_id)
+        self._cleanup_local_files(vid_id)
         self.video_status.pop(vid_id, None)
 
     def get_all_status(self) -> list[dict]:
@@ -226,3 +231,16 @@ class LibraryManager:
 
     def _remove_video_data(self, video_id: str):
         vectorstore.delete_video(self.app_state.collections, video_id)
+
+    def _cleanup_local_files(self, video_id: str):
+        """Remove extracted audio and frames for a video."""
+        import shutil
+        from backend.config import AUDIO_DIR, FRAMES_DIR
+
+        audio_file = AUDIO_DIR / f"{video_id}.wav"
+        if audio_file.exists():
+            audio_file.unlink()
+
+        frame_dir = FRAMES_DIR / video_id
+        if frame_dir.exists():
+            shutil.rmtree(frame_dir)

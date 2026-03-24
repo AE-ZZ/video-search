@@ -20,7 +20,7 @@ Everything runs locally on your machine except for the AI summaries and Q&A (whi
 | **whisper.cpp large-v3-turbo** | Speech-to-Text | Metal GPU | Transcribes video audio into timestamped text segments. ~45x faster than CPU-based alternatives on Apple Silicon. |
 | **CLIP ViT-B/32** | Vision-Language | MPS GPU | Embeds video frames and text queries into a shared vector space for visual search. Runs locally via `open-clip-torch`. |
 | **all-MiniLM-L6-v2** | Text Embedding | MPS GPU | Embeds transcript segments and search queries for semantic text search. Runs locally via `sentence-transformers`, 384-dim vectors. |
-| **GPT-4o-mini** | LLM | Cloud | Generates video summaries and answers Q&A questions with timestamp citations. Requires OpenAI API key. |
+| **GPT-4o-mini** | LLM | Cloud | Generates video summaries with timestamp citations. |
 
 ### Vector Database
 

@@ -5,3 +5,4 @@ __pycache__/
 backend/data/
 .DS_Store
 test.ipynb
+.claude/settings.local.json

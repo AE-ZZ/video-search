@@ -28,15 +28,14 @@ def init_openai():
 def init_local():
     global _backend, _text_model, _text_processor
     global _vision_model, _vision_processor, _vision_config
-    from mlx_lm import load as load_text
-    from mlx_vlm import load as load_vision
+    from mlx_vlm import load
     from mlx_vlm.utils import load_config
 
     logger.info(f"Loading text LLM: {config.LOCAL_LLM_TEXT} ...")
-    _text_model, _text_processor = load_text(config.LOCAL_LLM_TEXT)
+    _text_model, _text_processor = load(config.LOCAL_LLM_TEXT)
 
     logger.info(f"Loading vision LLM: {config.LOCAL_LLM_VISION} ...")
-    _vision_model, _vision_processor = load_vision(config.LOCAL_LLM_VISION)
+    _vision_model, _vision_processor = load(config.LOCAL_LLM_VISION)
     _vision_config = load_config(config.LOCAL_LLM_VISION)
 
     _backend = "local"
@@ -67,12 +66,12 @@ def _build_chat_prompt(system: str | None, user: str) -> str:
 
 
 def _local_text_generate(prompt: str, max_tokens: int = 1024) -> str:
-    from mlx_lm import generate
+    from mlx_vlm import generate
     result = generate(
         _text_model, _text_processor,
         prompt=prompt,
-        max_tokens=max_tokens,
         verbose=False,
+        max_tokens=max_tokens,
     )
     return _clean_output(result)
 

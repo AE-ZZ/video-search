@@ -15,4 +15,5 @@ dependencies = [
     "pillow",
     "watchdog",
     "python-dotenv",
+    "mlx-vlm",
 ]

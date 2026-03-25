@@ -20,7 +20,9 @@ Everything runs locally on your machine except for the AI summaries and Q&A (whi
 | **whisper.cpp large-v3-turbo** | Speech-to-Text | Metal GPU | Transcribes video audio into timestamped text segments. ~45x faster than CPU-based alternatives on Apple Silicon. |
 | **CLIP ViT-B/32** | Vision-Language | MPS GPU | Embeds video frames and text queries into a shared vector space for visual search. Runs locally via `open-clip-torch`. |
 | **all-MiniLM-L6-v2** | Text Embedding | MPS GPU | Embeds transcript segments and search queries for semantic text search. Runs locally via `sentence-transformers`, 384-dim vectors. |
-| **GPT-4o-mini** | LLM | Cloud | Generates video summaries with timestamp citations. |
+| **GPT-4o-mini** | LLM | Cloud | Generates video summaries, Q&A, and match explanations. Default mode. |
+| **Qwen3.5-9B-MLX-4bit** | LLM (text) | Apple Silicon | Local alternative for summaries, Q&A, and text match explanations. Used in local LLM mode. |
+| **Qwen3-VL-8B-Instruct-4bit** | LLM (vision) | Apple Silicon | Local alternative for visual match explanations. Describes frame content and explains relevance. Used in local LLM mode. |
 
 ### Vector Database
 
@@ -69,7 +71,7 @@ Search Query
 
 - Python 3.11+
 - FFmpeg (for audio/frame extraction)
-- An OpenAI API key (for summaries and Q&A)
+- An OpenAI API key (for summaries and Q&A) — **OR** use local LLM mode (no API key needed)
 - macOS with Apple Silicon recommended (Metal GPU acceleration for whisper.cpp and MPS for CLIP/sentence-transformers)
 
 ## Setup
@@ -81,16 +83,19 @@ cd /path/to/Playground
 # Create a virtual environment and install dependencies
 uv venv
 uv pip install fastapi "uvicorn[standard]" python-multipart \
-    open-clip-torch sentence-transformers chromadb openai pillow python-dotenv watchdog
+    open-clip-torch sentence-transformers chromadb openai pillow python-dotenv watchdog mlx-lm mlx-vlm
 
 # Install whisper.cpp with Metal GPU support
 GGML_METAL=1 uv pip install git+https://github.com/absadiki/pywhispercpp
 
-# Set your OpenAI API key in .env
+# Set your OpenAI API key in .env (skip if using local LLM mode)
 echo "OPENAI_API_KEY=sk-proj-your-key-here" > .env
 
 # (Optional) Pre-configure your video library path
 echo "VIDEO_LIBRARY_PATH=/path/to/your/videos" >> .env
+
+# (Optional) Enable local LLM mode (no API key needed)
+echo "LOCAL_LLM=1" >> .env
 ```
 
 ## Usage
@@ -98,10 +103,14 @@ echo "VIDEO_LIBRARY_PATH=/path/to/your/videos" >> .env
 ### 1. Start the server
 
 ```bash
+# OpenAI mode (default — requires OPENAI_API_KEY)
 .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+
+# Local LLM mode (fully offline, no API key needed)
+LOCAL_LLM=1 .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-On first start, ML models will be downloaded automatically (~1.5 GB for whisper.cpp, ~350 MB for CLIP, ~80 MB for sentence-transformers). Subsequent starts load from cache.
+On first start, ML models will be downloaded automatically. In local LLM mode, this includes Qwen3.5-9B (~5.6 GB) and Qwen3-VL-8B (~3.2 GB) in addition to whisper.cpp, CLIP, and sentence-transformers. Subsequent starts load from cache.
 
 ### 2. Open the app
 
@@ -192,7 +201,7 @@ backend/
 │   ├── embeddings.py        # Sentence-transformer embeddings (MPS)
 │   ├── visual.py            # CLIP image/text encoding (MPS)
 │   ├── vectorstore.py       # ChromaDB (3 collections)
-│   └── llm.py               # OpenAI GPT for summary + Q&A
+│   └── llm.py               # LLM service (OpenAI or local MLX, auto-switches via LOCAL_LLM)
 └── data/                    # Processed data (auto-created)
     ├── audio/               # Extracted audio (WAV)
     ├── frames/              # Extracted frame images
@@ -209,11 +218,23 @@ frontend/
 Settings in `.env`:
 
 ```bash
-OPENAI_API_KEY=sk-proj-...       # Required for summaries and Q&A
+OPENAI_API_KEY=sk-proj-...          # Required in OpenAI mode
 VIDEO_LIBRARY_PATH=/path/to/videos  # Set via UI or manually
+LOCAL_LLM=1                         # Set to use local models instead of OpenAI
 ```
 
-Model settings in `backend/config.py`:
+### LLM modes
+
+| Mode | Set by | LLM for text | LLM for vision | API key needed |
+|------|--------|-------------|----------------|----------------|
+| **OpenAI** (default) | `LOCAL_LLM` unset | GPT-4o-mini | GPT-4o-mini | Yes |
+| **Local** | `LOCAL_LLM=1` | Qwen3.5-9B-MLX-4bit (~5.6 GB) | Qwen3-VL-8B-Instruct-4bit (~3.2 GB) | No |
+
+Total RAM for local mode: ~11 GB (both LLMs + Whisper + CLIP + sentence-transformers). Fits on 16 GB machines.
+
+### Other model settings
+
+In `backend/config.py`:
 
 ```python
 WHISPER_MODEL = "large-v3-turbo"   # Options: tiny, base, small, medium, large-v3, large-v3-turbo

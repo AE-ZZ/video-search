@@ -28,5 +28,10 @@ CLIP_MODEL = "ViT-B-32"
 CLIP_PRETRAINED = "laion2b_s34b_b79k"
 SENTENCE_MODEL = "all-MiniLM-L6-v2"
 
+# Local LLM settings
+LOCAL_LLM_TEXT = "mlx-community/Qwen3.5-9B-MLX-4bit"
+LOCAL_LLM_VISION = "mlx-community/Qwen3-VL-8B-Instruct-4bit"
+USE_LOCAL_LLM = False  # set via --local-llm flag
+
 # Processing settings
 FRAME_SAMPLE_INTERVAL = 2  # extract 1 frame every N seconds

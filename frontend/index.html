@@ -102,6 +102,7 @@
                         <div class="tabs">
                             <button class="tab active" onclick="switchTab('summary')">Summary</button>
                             <button class="tab" onclick="switchTab('transcript')">Transcript</button>
+                            <button class="tab" onclick="switchTab('chat')">Chat</button>
                             <button class="tab" id="explain-tab-btn" onclick="switchTab('explanation')" hidden>Explanation</button>
                         </div>
                         <div id="tab-summary" class="tab-content active">
@@ -109,6 +110,13 @@
                         </div>
                         <div id="tab-transcript" class="tab-content">
                             <div id="transcript-content"></div>
+                        </div>
+                        <div id="tab-chat" class="tab-content">
+                            <div id="chat-messages"></div>
+                            <div class="chat-input">
+                                <input type="text" id="chat-input" placeholder="Ask a question about this video...">
+                                <button onclick="sendChat()">Send</button>
+                            </div>
                         </div>
                         <div id="tab-explanation" class="tab-content">
                             <div id="explanation-content"></div>

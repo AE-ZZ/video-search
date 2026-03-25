@@ -231,6 +231,7 @@ button:disabled { background: #555; cursor: not-allowed; }
     transition: background 0.2s;
 }
 .transcript-seg:hover { background: #2a2a2a; }
+.transcript-seg.active { background: #1a2a3a; border-left: 3px solid #4a9eff; }
 .transcript-seg .ts { color: #4a9eff; font-size: 0.8rem; margin-right: 0.5rem; }
 .transcript-seg .text { color: #ccc; font-size: 0.9rem; }
 

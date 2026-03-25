@@ -322,7 +322,7 @@ async function openVideo(videoId) {
     const transcriptEl = document.getElementById("transcript-content");
     if (data.transcript && data.transcript.length) {
         transcriptEl.innerHTML = data.transcript.map(s => `
-            <div class="transcript-seg" onclick="seekTo(${s.start_time})">
+            <div class="transcript-seg" data-time="${s.start_time}" onclick="seekTo(${s.start_time})">
                 <span class="ts">${formatTime(s.start_time)}</span>
                 <span class="text">${escapeHtml(s.text)}</span>
             </div>
@@ -360,6 +360,7 @@ async function openVideo(videoId) {
 }
 
 let currentExplainHit = null;
+let pendingTranscriptScroll = null;
 
 function openVideoAt(videoId, time, hitId) {
     if (hitId && hitDataMap[hitId]) {
@@ -374,6 +375,8 @@ function openVideoAt(videoId, time, hitId) {
             player.currentTime = time;
             player.play();
         });
+        pendingTranscriptScroll = time;
+        switchTab("transcript");
     });
 }
 
@@ -392,6 +395,26 @@ function seekTo(time) {
     const player = document.getElementById("video-player");
     player.currentTime = time;
     player.play();
+    scrollTranscriptTo(time);
+}
+
+function scrollTranscriptTo(time) {
+    const segs = document.querySelectorAll(".transcript-seg");
+    let closest = null;
+    let closestDiff = Infinity;
+    for (const seg of segs) {
+        const t = parseFloat(seg.dataset.time);
+        const diff = Math.abs(t - time);
+        if (diff < closestDiff) {
+            closestDiff = diff;
+            closest = seg;
+        }
+    }
+    if (closest) {
+        segs.forEach(s => s.classList.remove("active"));
+        closest.classList.add("active");
+        closest.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
 }
 
 // --- Explanation ---
@@ -590,6 +613,13 @@ function switchTab(name) {
     document.querySelectorAll(".tab").forEach(t => {
         if (t.textContent.toLowerCase() === name) t.classList.add("active");
     });
+
+    if (name === "transcript" && pendingTranscriptScroll !== null) {
+        setTimeout(() => {
+            scrollTranscriptTo(pendingTranscriptScroll);
+            pendingTranscriptScroll = null;
+        }, 50);
+    }
 }
 
 // --- Chat (optional) ---

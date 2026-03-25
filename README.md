@@ -59,7 +59,8 @@ Search Query
 - **Visual search** — Describe what you're looking for (e.g., "a red car", "person on stage") and find matching video frames via CLIP
 - **Video summarization** — Auto-generated bullet-point summaries from transcriptions
 - **Q&A chat** — Ask questions about a video's content; answers include timestamp citations
-- **Click-to-seek** — Click any search result or transcript segment to jump to that moment in the video
+- **Explain matches** — For semantic and visual results, click "Explain" to get a GPT-powered explanation of why the result matches your query. Visual explanations use GPT-4o-mini vision to describe the frame content. Explanations are cached so repeat views are instant.
+- **Click-to-seek** — Click any search result or transcript segment to jump to that moment in the video, with the transcript auto-scrolling to the matching segment
 - **Live processing status** — See which videos are processed, processing, or pending in real time
 - **Grouped search results** — Results are grouped by video file; click a video to expand and see all matching moments
 - **Adjustable search thresholds** — Fine-tune relevance via the Advanced panel (see below)
@@ -148,7 +149,8 @@ Only results above the threshold are returned — no forced padding with irrelev
 Click a processed video in the library to open the detail view with tabs:
 
 - **Summary** — AI-generated bullet-point overview
-- **Transcript** — Full timestamped transcript; click any segment to seek
+- **Transcript** — Full timestamped transcript; click any segment to seek. Opens scrolled to the matching segment when coming from search results.
+- **Explanation** — (only when opened from a semantic/visual search result) Shows why the result matched your query. Uses GPT-4o-mini vision for visual matches.
 - **Chat** — Ask questions like "What was discussed about X?" and get answers with timestamp references
 
 ## API Endpoints
@@ -161,6 +163,7 @@ Click a processed video in the library to open the detail view with tabs:
 | `GET` | `/api/library/{video_id}/stream` | Stream video file |
 | `GET` | `/api/library/{video_id}/frames/{timestamp}` | Get a frame image |
 | `GET` | `/api/search?q=...&type=...&semantic=...&text_threshold=...&semantic_threshold=...&visual_threshold=...` | Search across videos |
+| `POST` | `/api/explain` | Explain why search results match the query (supports text and vision) |
 | `GET` | `/api/videos/{video_id}` | Get video detail (summary + transcript) |
 | `POST` | `/api/chat` | Q&A chat about a specific video |
 | `POST` | `/api/ingest` | Upload and process a single video file |
@@ -178,6 +181,7 @@ backend/
 │   ├── library.py           # Video library listing, streaming, frames
 │   ├── ingest.py            # Single video upload + processing
 │   ├── search.py            # Text and visual search with thresholds
+│   ├── explain.py           # GPT-powered match explanations (text + vision)
 │   ├── chat.py              # Q&A with RAG retrieval
 │   └── videos.py            # Video detail, summary, transcript
 ├── services/

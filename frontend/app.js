@@ -2,6 +2,9 @@ const API = "/api";
 let currentVideoId = null;
 let chatHistory = [];
 let libraryPollInterval = null;
+let currentSearchQuery = "";
+let currentSearchHits = [];  // hits for the currently opened video
+let explainCache = {};  // hitId or "video_id:match_type:time" -> explanation string
 
 // --- Init ---
 async function init() {
@@ -180,10 +183,16 @@ async function performSearch() {
 
     const res = await fetch(`${API}/search?${params}`);
     const data = await res.json();
+    currentSearchQuery = q;
     renderSearchResults(data.results);
 }
 
+let allSearchResults = [];
+let hitDataMap = {};  // hitId -> result object
+
 function renderSearchResults(results) {
+    hitDataMap = {};
+    allSearchResults = results;
     const container = document.getElementById("search-results");
 
     if (!results.length) {
@@ -220,7 +229,9 @@ function renderSearchResults(results) {
         const types = [...new Set(group.hits.map(h => h.match_type))];
         const badges = types.map(t => `<span class="badge ${t}">${t}</span>`).join("");
 
-        const hitsHtml = group.hits.map(r => {
+        const hitsHtml = group.hits.map((r, idx) => {
+            const hitId = `${group.video_id}_${idx}`;
+            hitDataMap[hitId] = r;
             const time = r.start_time != null
                 ? `${formatTime(r.start_time)} - ${formatTime(r.end_time)}`
                 : r.timestamp != null ? formatTime(r.timestamp) : "";
@@ -231,15 +242,19 @@ function renderSearchResults(results) {
                     : "";
             const img = frameSrc ? `<img src="${frameSrc}" alt="frame">` : "";
             const badge = `<span class="badge ${r.match_type}">${r.match_type}</span>`;
+            const explainBtn = r.match_type !== "exact"
+                ? `<button class="explain-btn-small" onclick="event.stopPropagation(); explainSingle('${hitId}')">Explain</button>`
+                : "";
 
             return `
-                <div class="hit-item" onclick="event.stopPropagation(); openVideoAt('${r.video_id}', ${r.start_time || r.timestamp || 0})">
+                <div class="hit-item" onclick="event.stopPropagation(); openVideoAt('${r.video_id}', ${r.start_time || r.timestamp || 0}, '${hitId}')">
                     ${img}
                     <div class="hit-info">
                         <p>${badge} ${escapeHtml(r.text || "Visual match")}</p>
-                        <div class="result-meta">${time} | Score: ${r.score}</div>
+                        <div class="result-meta">${time} | Score: ${r.score} ${explainBtn}</div>
                     </div>
                 </div>
+                <div class="explain-inline" id="explain-${hitId}" hidden></div>
             `;
         }).join("");
 
@@ -289,6 +304,7 @@ function toggleGroup(header) {
 async function openVideo(videoId) {
     currentVideoId = videoId;
     chatHistory = [];
+    currentSearchHits = allSearchResults.filter(r => r.video_id === videoId);
 
     const res = await fetch(`${API}/videos/${videoId}`);
     const data = await res.json();
@@ -317,10 +333,40 @@ async function openVideo(videoId) {
 
     const chatMessages = document.getElementById("chat-messages");
     if (chatMessages) chatMessages.innerHTML = "";
+
+    // Show/hide Explanation tab based on the clicked search result
+    const explainTabBtn = document.getElementById("explain-tab-btn");
+    const explainContent = document.getElementById("explanation-content");
+    if (currentExplainHit && currentExplainHit.match_type !== "exact") {
+        explainTabBtn.hidden = false;
+        const key = cacheKey(currentExplainHit);
+        if (explainCache[key]) {
+            renderExplainTabSingle(currentExplainHit, explainCache[key]);
+        } else {
+            const time = currentExplainHit.start_time != null
+                ? `${formatTime(currentExplainHit.start_time)} - ${formatTime(currentExplainHit.end_time)}`
+                : currentExplainHit.timestamp != null ? formatTime(currentExplainHit.timestamp) : "";
+            explainContent.innerHTML = `
+                <p class="muted">Explain why this ${currentExplainHit.match_type} match at ${time} relates to "${escapeHtml(currentSearchQuery)}".</p>
+                <button onclick="explainCurrentHit()">Explain</button>
+            `;
+        }
+    } else {
+        explainTabBtn.hidden = true;
+        explainContent.innerHTML = "";
+    }
+
     switchTab("summary");
 }
 
-function openVideoAt(videoId, time) {
+let currentExplainHit = null;
+
+function openVideoAt(videoId, time, hitId) {
+    if (hitId && hitDataMap[hitId]) {
+        currentExplainHit = hitDataMap[hitId];
+    } else {
+        currentExplainHit = null;
+    }
     openVideo(videoId).then(() => {
         const player = document.getElementById("video-player");
         player.addEventListener("loadeddata", function onLoaded() {
@@ -346,6 +392,195 @@ function seekTo(time) {
     const player = document.getElementById("video-player");
     player.currentTime = time;
     player.play();
+}
+
+// --- Explanation ---
+function renderExplainTabSingle(hit, explanation) {
+    const container = document.getElementById("explanation-content");
+    const badge = `<span class="badge ${hit.match_type}">${hit.match_type}</span>`;
+    const time = hit.start_time != null
+        ? `${formatTime(hit.start_time)} - ${formatTime(hit.end_time)}`
+        : hit.timestamp != null ? formatTime(hit.timestamp) : "";
+    const seekTime = hit.start_time || hit.timestamp || 0;
+
+    container.innerHTML = `
+        <div class="explain-item" onclick="seekTo(${seekTime})">
+            <div class="explain-header">
+                ${badge}
+                <span class="explain-time">${time}</span>
+            </div>
+            ${hit.text ? `<p class="explain-text">"${escapeHtml(hit.text)}"</p>` : ""}
+            <p class="explain-reason">${escapeHtml(explanation)}</p>
+        </div>
+    `;
+}
+
+async function explainCurrentHit() {
+    if (!currentExplainHit || !currentSearchQuery) return;
+
+    const container = document.getElementById("explanation-content");
+    container.innerHTML = '<p class="muted">Generating explanation...</p>';
+
+    const item = {
+        video_id: currentExplainHit.video_id,
+        match_type: currentExplainHit.match_type,
+        text: currentExplainHit.text || null,
+        start_time: currentExplainHit.start_time ?? null,
+        end_time: currentExplainHit.end_time ?? null,
+        timestamp: currentExplainHit.timestamp ?? null,
+    };
+
+    try {
+        const res = await fetch(`${API}/explain`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: currentSearchQuery, items: [item] }),
+        });
+        const data = await res.json();
+        const explanation = data.results[0]?.explanation || "No explanation available.";
+        const key = cacheKey(currentExplainHit);
+        explainCache[key] = explanation;
+        renderExplainTabSingle(currentExplainHit, explanation);
+    } catch (e) {
+        container.innerHTML = `<p class="muted">Error: ${e.message}</p>`;
+    }
+}
+
+function renderExplanationTab(explanations) {
+    const container = document.getElementById("explanation-content");
+    container.innerHTML = explanations.map(e => {
+        const badge = `<span class="badge ${e.match_type}">${e.match_type}</span>`;
+        const time = e.start_time != null
+            ? `${formatTime(e.start_time)} - ${formatTime(e.end_time)}`
+            : e.timestamp != null ? formatTime(e.timestamp) : "";
+        const seekTime = e.start_time || e.timestamp || 0;
+
+        return `
+            <div class="explain-item" onclick="seekTo(${seekTime})">
+                <div class="explain-header">
+                    ${badge}
+                    <span class="explain-time">${time}</span>
+                </div>
+                ${e.text ? `<p class="explain-text">"${escapeHtml(e.text)}"</p>` : ""}
+                <p class="explain-reason">${escapeHtml(e.explanation)}</p>
+            </div>
+        `;
+    }).join("");
+}
+
+async function requestExplanations() {
+    const explainableHits = currentSearchHits.filter(r => r.match_type !== "exact");
+    if (!explainableHits.length || !currentSearchQuery) return;
+
+    // Deduplicate visual results within 5 seconds
+    const filtered = [];
+    const visualTimestamps = [];
+    for (const r of explainableHits) {
+        if (r.match_type === "visual") {
+            const ts = r.timestamp || 0;
+            if (visualTimestamps.some(t => Math.abs(t - ts) < 5)) continue;
+            visualTimestamps.push(ts);
+        }
+        filtered.push(r);
+    }
+
+    // Split into cached and uncached
+    const cached = [];
+    const uncached = [];
+    for (const r of filtered) {
+        const key = cacheKey(r);
+        if (explainCache[key]) {
+            cached.push({ ...r, explanation: explainCache[key] });
+        } else {
+            uncached.push(r);
+        }
+    }
+
+    // If all cached, render immediately
+    if (!uncached.length) {
+        renderExplanationTab(cached);
+        return;
+    }
+
+    const container = document.getElementById("explanation-content");
+    container.innerHTML = `<p class="muted">Generating explanations... (${cached.length} cached, ${uncached.length} new)</p>`;
+
+    const items = uncached.map(r => ({
+        video_id: r.video_id,
+        match_type: r.match_type,
+        text: r.text || null,
+        start_time: r.start_time ?? null,
+        end_time: r.end_time ?? null,
+        timestamp: r.timestamp ?? null,
+    }));
+
+    try {
+        const res = await fetch(`${API}/explain`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: currentSearchQuery, items }),
+        });
+        const data = await res.json();
+
+        // Cache new results
+        for (let i = 0; i < uncached.length; i++) {
+            const key = cacheKey(uncached[i]);
+            explainCache[key] = data.results[i]?.explanation || "No explanation available.";
+        }
+
+        // Merge all and render in original order
+        const all = filtered.map(r => ({
+            ...r,
+            explanation: explainCache[cacheKey(r)],
+        }));
+        renderExplanationTab(all);
+    } catch (e) {
+        container.innerHTML = `<p class="muted">Error: ${e.message}</p>`;
+    }
+}
+
+function cacheKey(r) {
+    const time = r.start_time ?? r.timestamp ?? 0;
+    return `${currentSearchQuery}|${r.video_id}|${r.match_type}|${time}`;
+}
+
+async function explainSingle(hitId) {
+    const r = hitDataMap[hitId];
+    if (!r || !currentSearchQuery) return;
+
+    const container = document.getElementById(`explain-${hitId}`);
+    container.hidden = false;
+
+    const key = cacheKey(r);
+    if (explainCache[key]) {
+        container.innerHTML = `<p class="explain-reason">${escapeHtml(explainCache[key])}</p>`;
+        return;
+    }
+
+    container.innerHTML = '<p class="muted">Generating explanation...</p>';
+
+    const item = {
+        video_id: r.video_id,
+        match_type: r.match_type,
+        text: r.text || null,
+        start_time: r.start_time ?? null,
+        end_time: r.end_time ?? null,
+        timestamp: r.timestamp ?? null,
+    };
+
+    try {
+        const res = await fetch(`${API}/explain`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: currentSearchQuery, items: [item] }),
+        });
+        const data = await res.json();
+        const explanation = data.results[0]?.explanation || "No explanation available.";
+        explainCache[key] = explanation;
+        container.innerHTML = `<p class="explain-reason">${escapeHtml(explanation)}</p>`;
+    } catch (e) {
+        container.innerHTML = `<p class="muted">Error: ${e.message}</p>`;
+    }
 }
 
 function switchTab(name) {

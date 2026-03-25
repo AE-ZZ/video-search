@@ -12,7 +12,7 @@ from backend.services.embeddings import load_sentence_model
 from backend.services.vectorstore import init_vectorstore
 from backend.services.library import LibraryManager
 from backend.services.watcher import start_watcher
-from backend.routers import ingest, search, chat, videos, settings, library
+from backend.routers import ingest, search, chat, videos, settings, library, explain
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,6 +64,7 @@ app.include_router(library.router, prefix="/api")
 app.include_router(ingest.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(explain.router, prefix="/api")
 app.include_router(videos.router, prefix="/api")
 
 # Serve frontend

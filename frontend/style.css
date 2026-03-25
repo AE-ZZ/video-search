@@ -234,6 +234,35 @@ button:disabled { background: #555; cursor: not-allowed; }
 .transcript-seg .ts { color: #4a9eff; font-size: 0.8rem; margin-right: 0.5rem; }
 .transcript-seg .text { color: #ccc; font-size: 0.9rem; }
 
+/* Explanation */
+.explain-btn-small {
+    padding: 0.15rem 0.5rem; font-size: 0.7rem; border-radius: 4px;
+    background: #3a3a5a; color: #aaf; margin-left: 0.5rem;
+    cursor: pointer; border: none;
+}
+.explain-btn-small:hover { background: #4a4a6a; }
+
+.explain-inline {
+    padding: 0.5rem 0.75rem; margin: 0 0.5rem 0.5rem;
+    background: #1a1a2e; border-radius: 6px; border-left: 3px solid #4a9eff;
+}
+.explain-reason { font-size: 0.85rem; color: #ccc; line-height: 1.5; }
+
+.explain-item {
+    padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;
+    background: #1a1a2e; border: 1px solid #2a2a4a; cursor: pointer;
+    transition: background 0.2s;
+}
+.explain-item:hover { background: #222240; }
+.explain-header {
+    display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;
+}
+.explain-time { font-size: 0.8rem; color: #4a9eff; }
+.explain-text {
+    font-size: 0.85rem; color: #888; font-style: italic;
+    margin-bottom: 0.3rem;
+}
+
 /* Chat */
 #chat-messages {
     max-height: 400px; overflow-y: auto; margin-bottom: 0.75rem;

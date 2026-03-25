@@ -102,12 +102,16 @@
                         <div class="tabs">
                             <button class="tab active" onclick="switchTab('summary')">Summary</button>
                             <button class="tab" onclick="switchTab('transcript')">Transcript</button>
+                            <button class="tab" id="explain-tab-btn" onclick="switchTab('explanation')" hidden>Explanation</button>
                         </div>
                         <div id="tab-summary" class="tab-content active">
                             <div id="summary-content"></div>
                         </div>
                         <div id="tab-transcript" class="tab-content">
                             <div id="transcript-content"></div>
+                        </div>
+                        <div id="tab-explanation" class="tab-content">
+                            <div id="explanation-content"></div>
                         </div>
                     </div>
                 </div>
